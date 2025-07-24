@@ -11,19 +11,19 @@ from telegram.ext import (
 )
 from openai import OpenAI
 
-# Zmienne środowiskowe (Render NIE obsługuje .env)
+# Zmienne środowiskowe
 try:
     openai_api_key = os.environ["OPENAI_API_KEY"]
     telegram_token = os.environ["TELEGRAM_BOT_TOKEN"]
 except KeyError as e:
     raise RuntimeError(f"Brakuje zmiennej środowiskowej: {e}")
 
-# Dane MSK (stałe)
+# Dane MSK
 MSK_PHONE = "733 847 903"
 MSK_PHONE_TEL = "+48733847903"
 MSK_ADDRESS = "ul. Kościuszki 133B, 26-120 Bliżyn"
-MSK_LAT = 51.131503
-MSK_LON = 20.793458
+MSK_LAT = 51.113289
+MSK_LON = 20.744345
 MSK_SITE = "https://ratownictwo.online"
 MSK_REGULAMIN = f"{MSK_SITE}/regulamin"
 MSK_FORMULARZ = f"{MSK_SITE}/formularz"
@@ -33,7 +33,7 @@ client = OpenAI(api_key=openai_api_key)
 user_histories = {}
 user_last_seen = {}
 
-# Start
+# /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         ["Transport", "Pobranie"],
@@ -77,7 +77,7 @@ async def regulamin(update, context):
     await update.message.reply_text(f"📘 Regulamin świadczenia usług:\n👉 {MSK_REGULAMIN}")
 
 async def faq(update, context): await update.message.reply_text(
-    "❓ Najczęstsze pytania:\n\n"
+    "❓ Najczęściej zadawane pytania:\n\n"
     "🔹 Czy działacie w nocy/weekendy?\nTak. 📞 733 847 903\n"
     "🔹 Czy to usługi NFZ?\nNie – usługi są odpłatne i profesjonalne.\n"
     "🔹 Czy transportujecie osoby leżące?\nTak, z opieką medyczną.\n"
@@ -136,7 +136,7 @@ async def cennik(update, context): await update.message.reply_text(
 
 async def dyzur(update, context): await update.message.reply_text(
     "🕐 Dyżury 7 dni w tygodniu, również w święta.\n"
-    "W pilnych sprawach: 📞 733 847 903"
+    f"W pilnych sprawach: 📞 {MSK_PHONE}"
 )
 
 async def zapomnij(update, context):
@@ -170,7 +170,7 @@ async def klawiatura_rozpoznanie(update: Update, context: ContextTypes.DEFAULT_T
     else:
         await gpt_reply(update, context)
 
-# GPT z pełnym zabezpieczeniem
+# GPT z zabezpieczeniem
 async def gpt_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     text = update.message.text
