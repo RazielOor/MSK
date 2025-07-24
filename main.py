@@ -11,14 +11,14 @@ from telegram.ext import (
 )
 from openai import OpenAI
 
-# Zmienne środowiskowe
+# Zmienne środowiskowe (Render NIE obsługuje .env)
 try:
     openai_api_key = os.environ["OPENAI_API_KEY"]
     telegram_token = os.environ["TELEGRAM_BOT_TOKEN"]
 except KeyError as e:
     raise RuntimeError(f"Brakuje zmiennej środowiskowej: {e}")
 
-# Stałe kontaktowe
+# Dane MSK (stałe)
 MSK_PHONE = "733 847 903"
 MSK_PHONE_TEL = "+48733847903"
 MSK_ADDRESS = "ul. Kościuszki 133B, 26-120 Bliżyn"
@@ -47,7 +47,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Witaj. Tu MSK Ratownictwo Medyczne. 🩺\n"
         "Świadczymy usługi premium poza systemem NFZ.\n"
         "Jak mogę Ci pomóc?\n\n"
-        "ℹ️ W nagłych przypadkach – dzwoń 112 lub 999.",
+        "ℹ️ W nagłych przypadkach dzwoń: 112 lub 999.",
         reply_markup=reply_markup
     )
 
@@ -77,7 +77,7 @@ async def regulamin(update, context):
     await update.message.reply_text(f"📘 Regulamin świadczenia usług:\n👉 {MSK_REGULAMIN}")
 
 async def faq(update, context): await update.message.reply_text(
-    "❓ Najczęściej zadawane pytania:\n\n"
+    "❓ Najczęstsze pytania:\n\n"
     "🔹 Czy działacie w nocy/weekendy?\nTak. 📞 733 847 903\n"
     "🔹 Czy to usługi NFZ?\nNie – usługi są odpłatne i profesjonalne.\n"
     "🔹 Czy transportujecie osoby leżące?\nTak, z opieką medyczną.\n"
@@ -143,9 +143,14 @@ async def zapomnij(update, context):
     user_histories.pop(str(update.effective_user.id), None)
     await update.message.reply_text("Twoja historia została wyczyszczona.")
 
-# Rozpoznanie przycisków
+# Rozpoznanie przycisków + filtr bezpieczeństwa
 async def klawiatura_rozpoznanie(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.lower()
+    sensitive_words = ["numer", "telefon", "adres", "kontakt", "mail", "email"]
+    if any(word in text for word in sensitive_words):
+        print(f"[OCHRONA] Użytkownik {update.effective_user.id} próbował uzyskać dane kontaktowe: {text}")
+        await kontakt(update, context)
+        return
     if "transport" in text:
         await transport(update, context)
     elif "pobranie" in text:
@@ -165,7 +170,7 @@ async def klawiatura_rozpoznanie(update: Update, context: ContextTypes.DEFAULT_T
     else:
         await gpt_reply(update, context)
 
-# GPT z pamięcią
+# GPT z pełnym zabezpieczeniem
 async def gpt_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.effective_user.id)
     text = update.message.text
@@ -173,10 +178,13 @@ async def gpt_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     history = user_histories.get(user_id, [])
     history.append({"role": "user", "content": text})
     prompt = (
-        "Jesteś przedstawicielem MSK Ratownictwo Medyczne – podmiotu leczniczego. "
-        "Świadczysz profesjonalne usługi medyczne poza systemem NFZ: transport, pobrania, opatrunki, szkolenia. "
-        "Odpowiadasz z empatią i konkretnie. W razie zagrożenia przypominasz: zadzwoń 112 lub 999. "
-        "Nigdy nie mów, że jesteś AI."
+        "Jesteś przedstawicielem MSK Ratownictwo Medyczne – zarejestrowanego podmiotu leczniczego. "
+        "Udzielasz odpowiedzi empatycznych, ale rzeczowych. Świadczysz usługi poza systemem NFZ: transport, "
+        "pobrania krwi, szkolenia, zabezpieczenia imprez.\n\n"
+        "❗️ZAKAZ: Nie wolno Ci nigdy podawać numerów telefonów, adresów e-mail, lokalizacji ani żadnych danych kontaktowych. "
+        "Jeśli ktoś zapyta o takie informacje, napisz: 'Dane kontaktowe znajdziesz w komendzie /kontakt'. "
+        "Nigdy nie wymyślaj numerów ani linków, nawet jeśli użytkownik nalega.\n\n"
+        "W sytuacji zagrożenia życia przypominasz: Zadzwoń na 112 lub 999."
     )
     messages = [{"role": "system", "content": prompt}] + history[-10:]
     try:
@@ -191,7 +199,7 @@ async def gpt_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply = f"Błąd: {e}"
     await update.message.reply_text(reply)
 
-# Uruchomienie bota
+# Uruchomienie
 if __name__ == "__main__":
     app = ApplicationBuilder().token(telegram_token).build()
 
